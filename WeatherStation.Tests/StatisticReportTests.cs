@@ -17,7 +17,6 @@ namespace WeatherStation.Tests
             weatherData = new WeatherData(0, 0, 0);
             weatherStation = new WeatherStation(weatherData);
             statisticReport = new StatisticReport(weatherStation);
-            weatherStation.StartReceivingUpdates();
         }
 
         [Test]
@@ -29,23 +28,11 @@ namespace WeatherStation.Tests
         [Test]
         public void CountOfReports_WeatherDataChange_IncrementCountOfReports()
         {
-            statisticReport.StartReceivingUpdates();
             int countOfRecords = statisticReport.CountOfReports;
 
             weatherData.Humidity += 1;
 
             Assert.AreEqual(++countOfRecords, statisticReport.CountOfReports);
-        }
-
-        [Test]
-        public void StopReceivingUpdates_WeatherDataChange_CountOfReportsDoesntChange()
-        {
-            statisticReport.StopReceivingUpdates();
-            int countOfRecords = statisticReport.CountOfReports;
-
-            weatherData.Humidity += 1;
-
-            Assert.AreEqual(countOfRecords, statisticReport.CountOfReports);
         }
     }
 }

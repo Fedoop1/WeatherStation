@@ -1,6 +1,7 @@
 ﻿using System;
 using Moq;
 using NUnit.Framework;
+using WeatherStation.Interfaces;
 
 namespace WeatherStation.Tests
 {
@@ -8,14 +9,12 @@ namespace WeatherStation.Tests
     {
         private WeatherData weatherData;
         private WeatherStation weatherStation;
-        private Mock<IWeatherDataEventSubsriber> weatherDataSubsriberMock;
 
         [OneTimeSetUp]
         public void SetUp()
         {
             weatherData = new WeatherData(0, 0, 0);
             weatherStation = new WeatherStation(weatherData);
-            weatherDataSubsriberMock = new Mock<IWeatherDataEventSubsriber>();
 
         }
 
@@ -23,30 +22,32 @@ namespace WeatherStation.Tests
         public void Ctor_NullWeatherData_ThrowArgumentNullException() => Assert.Throws<ArgumentNullException>(() => new WeatherStation(null), "Weather station can't be null.");
 
         [Test]
-        public void WeatherChange_WeatherDataChange_InvokeOnce()
+        public void Update_WeatherDataChange_InvokeOnce()
         {
-            weatherDataSubsriberMock = new Mock<IWeatherDataEventSubsriber>();
-            weatherDataSubsriberMock.Setup(x => x.WeatherDataChangeHandler(It.IsAny<object>(), It.IsAny<WeatherDataEventArgs>()));
-            var weatherDataSubsriber = weatherDataSubsriberMock.Object;
+            var observer = new Mock<IObserver>();
+            observer.Setup(x => x.Update(It.IsAny<object>(), It.IsAny<EventArgs>()));
+            var weatherDataSubsriber = observer.Object;
 
-            weatherStation.WeatherChange += weatherDataSubsriber.WeatherDataChangeHandler;
-            weatherStation.StartReceivingUpdates();
+            weatherStation.Register(weatherDataSubsriber);
             weatherData.Humidity += 1;
 
-            weatherDataSubsriberMock.Verify(x => x.WeatherDataChangeHandler(It.IsAny<object>(), It.IsAny<WeatherDataEventArgs>()), Times.Once);
+            observer.Verify(x => x.Update(It.IsAny<object>(), It.IsAny<EventArgs>()), Times.Once);
         }
 
         [Test]
-        public void StopReceivingUpdates_WeatherDataChange_EventNeverInvoke()
+        public void Unregistry_WeatherDataChange_InvokeOnce()
         {
-            weatherDataSubsriberMock.Setup(x => x.WeatherDataChangeHandler(It.IsAny<object>(), It.IsAny<WeatherDataEventArgs>()));
-            var weatherDataSubsriber = weatherDataSubsriberMock.Object;
+            var observer = new Mock<IObserver>();
+            observer.Setup(x => x.Update(It.IsAny<object>(), It.IsAny<EventArgs>()));
+            var weatherDataSubsriber = observer.Object;
 
-            weatherStation.WeatherChange += weatherDataSubsriber.WeatherDataChangeHandler;
-            weatherStation.StopReceivingUpdates();
+            weatherStation.Register(weatherDataSubsriber);
+            weatherData.Humidity += 1;
+            weatherStation.Unregister(weatherDataSubsriber);
             weatherData.Humidity += 1;
 
-            weatherDataSubsriberMock.Verify(x => x.WeatherDataChangeHandler(It.IsAny<object>(), It.IsAny<WeatherDataEventArgs>()), Times.Never);
+
+            observer.Verify(x => x.Update(It.IsAny<object>(), It.IsAny<EventArgs>()), Times.Once);
         }
     }
 }

@@ -13,10 +13,9 @@ namespace WeatherStation.Tests
         [OneTimeSetUp]
         public void SetUp()
         {
-            weatherData = new WeatherData(0, 0, 0);
+            weatherData = new WeatherData(1, 1, 1);
             weatherStation = new WeatherStation(weatherData);
             currentConditionReport = new CurrentConditionsReport(weatherStation);
-            weatherStation.StartReceivingUpdates();
         }
 
         [Test]
@@ -24,23 +23,18 @@ namespace WeatherStation.Tests
 
         [Test]
         public void PrintReport_NoWeatherData_ThrowArgumentNullException() => Assert.Throws<ArgumentException>(() => new CurrentConditionsReport(weatherStation).PrintReport(), "There are not any weather information.");
-        
+
         [Test]
-        public void StopReceivingUpdates_WeatherDataChangeAndPrintReport_ThrowArgumentException()
+        public void GetReport_ObservableChange_WheatherDataChange()
         {
-            currentConditionReport.StopReceivingUpdates();
 
-            weatherData.Temperature += 1;
+            this.weatherData.Humidity += 1;
+            var firstWeatherData = currentConditionReport.GetReport();
+            this.weatherData.Humidity += 1;
+            var secondWeatherData = currentConditionReport.GetReport();
 
-            try
-            {
-                currentConditionReport.PrintReport();
-                Assert.Fail();
-            }
-            catch (ArgumentException)
-            {
-                Assert.True(true);
-            }
+            Assert.IsTrue(firstWeatherData.Humidity != secondWeatherData.Humidity);
         }
+        
     }
 }

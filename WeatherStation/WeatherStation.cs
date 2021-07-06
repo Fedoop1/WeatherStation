@@ -1,25 +1,36 @@
 ﻿using System;
+using System.Collections.Generic;
+using WeatherStation.Interfaces;
 
 namespace WeatherStation
 {
     /// <summary>
     /// Class describes weather station instance, which contain actual information about weather data.
     /// </summary>
-    public class WeatherStation
+    public class WeatherStation : IObservable, IObserver
     {
-        private readonly WeatherData weatherData;
-        private float temperature;
-        private int humidity;
-        private int pressure;
+        private readonly List<IObserver> observers = new ();
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WeatherStation"/> class and subscribe it for weather data notifications.
+        /// </summary>
+        /// <param name="weatherData">The weather data instance.</param>
+        /// <exception cref="System.ArgumentNullException">Throws when weather data object is null.</exception>
+        public WeatherStation(WeatherData weatherData)
+        {
+            if (weatherData is null)
+            {
+                throw new ArgumentNullException(nameof(weatherData), "Weather data can't be null");
+            }
+
+            weatherData.Register(this);
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WeatherStation"/> class.
         /// </summary>
-        /// <param name="weatherData">The weather data.</param>
-        /// <exception cref="System.ArgumentNullException">Throws when data object is null.</exception>
-        public WeatherStation(WeatherData weatherData)
+        public WeatherStation()
         {
-            this.weatherData = weatherData ?? throw new ArgumentNullException(nameof(weatherData), "Weather can't be null");
         }
 
         /// <summary>
@@ -33,7 +44,7 @@ namespace WeatherStation
         /// <value>
         /// The weather humidity value.
         /// </value>
-        public int Humidity { get => this.humidity; }
+        public int Humidity { get; private set; }
 
         /// <summary>
         /// Gets the weather pressure value.
@@ -41,7 +52,7 @@ namespace WeatherStation
         /// <value>
         /// The weather pressure value.
         /// </value>
-        public int Pressure { get => this.pressure; }
+        public int Pressure { get; private set; }
 
         /// <summary>
         /// Gets the weather temperature value.
@@ -49,73 +60,52 @@ namespace WeatherStation
         /// <value>
         /// The weather temperature value.
         /// </value>
-        public float Temperature { get => this.temperature; }
+        public float Temperature { get; private set; }
 
-        /// <summary>
-        /// Subscribe instance to weather change event to receive new information about weather changes.
-        /// </summary>
-        public void StartReceivingUpdates()
+        /// <inheritdoc/>
+        void IObserver.Update(object sender, EventArgs info)
         {
-            this.weatherData.HumidityChange += this.OnHumidityChange;
-            this.weatherData.TemperatureChange += this.OnTemperatureChange;
-            this.weatherData.PressureChange += this.OnPressureChange;
-        }
-
-        /// <summary>
-        /// Unsubscribe instance from weather changes updates.
-        /// </summary>
-        public void StopReceivingUpdates()
-        {
-            this.weatherData.HumidityChange -= this.OnHumidityChange;
-            this.weatherData.TemperatureChange -= this.OnTemperatureChange;
-            this.weatherData.PressureChange -= this.OnPressureChange;
-        }
-
-        /// <summary>
-        /// Raises the weather change event.
-        /// </summary>
-        /// <param name="weatherData">The <see cref="WeatherDataEventArgs"/> instance containing the event data.</param>
-        protected virtual void OnWeatherChange(WeatherDataEventArgs weatherData) => this.WeatherChange?.Invoke(this, weatherData);
-
-        /// <summary>
-        /// Called when temperature change event is invoked.
-        /// </summary>
-        /// <param name="sender">The sender object.</param>
-        /// <param name="weatherData">The <see cref="WeatherTemperatureEventArgs"/> instance containing the event data.</param>
-        protected virtual void OnTemperatureChange(object sender, WeatherTemperatureEventArgs weatherData)
-        {
-            if (this.Temperature != weatherData?.Temperature)
+            if (info is WeatherDataEventArgs weatherDataInfo)
             {
-                this.temperature = weatherData.Temperature;
-                this.OnWeatherChange(new WeatherDataEventArgs(this.temperature, this.humidity, this.pressure));
+                this.Humidity = weatherDataInfo.Humidity;
+                this.Pressure = weatherDataInfo.Pressure;
+                this.Temperature = weatherDataInfo.Temperature;
+                ((IObservable)this).Notify();
+                return;
             }
         }
 
-        /// <summary>
-        /// Called when pressure change event is invoked.
-        /// </summary>
-        /// <param name="sender">The object sender.</param>
-        /// <param name="weatherData">The <see cref="WeatherPressureEventArgs"/> instance containing the event data.</param>
-        protected virtual void OnPressureChange(object sender, WeatherPressureEventArgs weatherData)
+        /// <inheritdoc/>
+        public void Register(IObserver observer)
         {
-            if (this.Pressure != weatherData?.Pressure)
+            if (observer is null)
             {
-                this.pressure = weatherData.Pressure;
-                this.OnWeatherChange(new WeatherDataEventArgs(this.temperature, this.humidity, this.pressure));
+                throw new ArgumentNullException(nameof(observer), "Observer can't be null");
             }
+
+            this.observers.Add(observer);
         }
 
-        /// <summary>
-        /// Called when humidity change event is invoked.
-        /// </summary>
-        /// <param name="sender">The object sender.</param>
-        /// <param name="weatherData">The <see cref="WeatherHumidityEventArgs"/> instance containing the event data.</param>
-        protected virtual void OnHumidityChange(object sender, WeatherHumidityEventArgs weatherData)
+        /// <inheritdoc/>
+        public void Unregister(IObserver observer)
         {
-            if (this.Humidity != weatherData?.Humidity)
+            if (observer is null)
             {
-                this.humidity = weatherData.Humidity;
-                this.OnWeatherChange(new WeatherDataEventArgs(this.Temperature, this.Humidity, this.Pressure));
+                throw new ArgumentNullException(nameof(observer), "Observer can't be null");
+            }
+
+            this.observers.Remove(observer);
+        }
+
+        /// <inheritdoc/>
+        void IObservable.Notify()
+        {
+            foreach (var observer in this.observers)
+            {
+                if (observer != null)
+                {
+                    observer.Update(this, new WeatherDataEventArgs(this.Temperature, this.Humidity, this.Pressure));
+                }
             }
         }
     }
